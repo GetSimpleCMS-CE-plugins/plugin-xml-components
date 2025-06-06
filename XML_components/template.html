@@ -1,0 +1,129 @@
+<style>
+	.xml-components__title {
+		width: 100%;
+		height: 30px;
+		line-height: 30px;
+		border-bottom: 1px #c0c0c0 solid;
+		cursor: pointer;
+		padding-left: 20px;
+		box-sizing: border-box;
+		font-weight: bold;
+		font-size: 22px;
+	}
+	
+	.xml-components__title:hover {
+		background-color: #f0f0f0;
+		color: #b30606;
+	}
+	
+	#xml-components__editor {
+		width: 100%;
+		height: 300px;
+	}
+	
+	.xml-components__save {
+		float: right;
+		display: none;
+		height: 100%;
+		width: 100px;
+		border: 0;
+		cursor: pointer;
+	}
+	
+	#xml-components__new {
+		width: 100%;
+		height: 30px;
+		margin-bottom: 30px;
+		cursor: pointer;
+		border: 0;
+	}
+	
+</style>
+<div id="xml-components">
+<button id="xml-components__new">New component</button>
+</div>
+<script src="/plugins/XML_components/Ace/ace.js" type="text/javascript" charset="utf-8"></script>
+<script>
+	var oldC = '';
+	var editor = null;
+	
+	$('#xml-components__new').on('click', function (){
+		var name = prompt("Name of new component:", '');
+			if (name != null){
+			$.post('/admin/load.php?id=XML_components', {mode: 'saveEmptyComponent', name: name})
+			.success(function (data){
+				var res = JSON.parse(data);
+				if (res.status == 'ok'){
+					window.location.href = window.location.href.split("#")[0] + '&rnd='+ getRandomInt(1, 10000) + '#' + name;
+				}	
+			});
+		}
+	});
+
+	$.post('/admin/load.php?id=XML_components', {mode: 'getComponentsList'})
+	.success(function (data){
+		var list = JSON.parse(data);
+		$.each(list, function (i, name){
+			$('#xml-components').append('<div data-name="'+ name +'" class="xml-components__title">'+ name +'<button class="xml-components__save">Save</button></div>');
+		});
+		
+		$('.xml-components__save').on('click', function (e){
+			e.stopPropagation();
+			$.post('/admin/load.php?id=XML_components', {
+				mode: 'saveComponent',
+				name: $(this).closest('div').attr('data-name'),
+				val: editor.getValue()
+			})
+			.success(function (data){
+				var res = JSON.parse(data);
+				if (res.status == 'ok'){
+					alert('Component saved.');
+				}
+			});
+		});
+		
+		$('#xml-components>div').on('click', clickFunc = function (){
+			var curC = $(this).attr('data-name');
+			
+			if (curC != oldC){
+				$(this).find('button').css({'display': 'block'});
+				$('[data-name='+ oldC +']').find('button').css({'display':'none'});
+				
+				
+				if (oldC == ''){
+					$(this).after('<div id="xml-components__editor"></div>');
+					editor = ace.edit("xml-components__editor");
+					editor.setTheme("ace/theme/iplastic");
+					editor.session.setMode("ace/mode/xml");
+				}
+				else {
+					var $editor = $('#xml-components__editor').detach();
+					$(this).after($editor);
+				}
+				
+				$.post('/admin/load.php?id=XML_components', {mode: 'getComponentContent', name: curC})
+				.success(function (data){				
+					editor.setValue(data, 1);
+					editor.focus();
+					oldC = curC;
+				});
+			}
+
+		});
+		if (oldC == ''){
+			var hash = window.location.href.split("#")[1];
+
+			if (hash == '' || typeof(hash) == 'undefined'){
+				$('#xml-components>div:eq(0)').trigger('click');
+			}
+			else {
+				$('[data-name='+ hash +']').trigger('click');
+			}
+		}
+	});
+	
+	function getRandomInt(min, max) {
+		return Math.floor(Math.random() * (max - min)) + min;
+	}
+	
+</script>
